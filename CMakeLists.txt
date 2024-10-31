@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 23)
 add_executable(Cell
         src/main.cpp
         src/Organelles/Peroxysome.cpp
+        src/Organelles/Lysosome.cpp
 )
 
 target_include_directories(Cell PRIVATE
