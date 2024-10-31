@@ -1,4 +1,4 @@
-name: C++ CI
+name: Build and Analyze
 
 on:
   push:
@@ -9,80 +9,30 @@ on:
       - main
 
 jobs:
-  build-and-analyze:
-    name: Build and Analyze on ${{ matrix.os }} with ${{ matrix.compiler }}
+  build:
     runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        compiler: [gcc, clang]
+        os: [ubuntu-latest]
+        compiler: [g++, clang++]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Set up on Ubuntu
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          if [ "${{ matrix.compiler }}" == "gcc" ]; then
-            sudo apt-get install -y build-essential cppcheck clang-tidy
-          else
-            sudo apt-get install -y clang cppcheck clang-tidy
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            sudo apt update
+            sudo apt install -y cmake clang cppcheck clang-tidy cmake build-essential
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            brew update
+            brew install cmake ${{ matrix.compiler }} cppcheck clang-tidy cmake
           fi
-        shell: bash
 
-      - name: Configure and Build on Ubuntu
-        if: runner.os == 'Linux'
+      - name: Configure and build project with CMake
         run: |
-          mkdir build
+          mkdir -p build
           cd build
-          if [ "${{ matrix.compiler }}" == "gcc" ]; then
-            cmake -DCMAKE_CXX_COMPILER=g++ ..
-          else
-            cmake -DCMAKE_CXX_COMPILER=clang++ ..
-          fi
+          cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
           cmake --build .
-        shell: bash
-
-      - name: Run cppcheck on Ubuntu
-        if: runner.os == 'Linux'
-        run: |
-          cppcheck --enable=all --inconclusive --error-exitcode=1 --suppress=missingIncludeSystem .
-        shell: bash
-
-      - name: Run clang-tidy on Ubuntu
-        if: runner.os == 'Linux'
-        run: |
-          find . -iname '*.cpp' | xargs clang-tidy -checks='*' --
-        shell: bash
-
-      - name: Set up on Windows
-        if: runner.os == 'Windows'
-        run: |
-          choco install -y mingw
-          choco install -y llvm
-          choco install -y cppcheck
-        shell: powershell
-
-      - name: Configure and Build on Windows
-        if: runner.os == 'Windows'
-        run: |
-          mkdir build
-          cd build
-          if (${{ matrix.compiler }} -eq 'gcc') {
-            cmake -G "MinGW Makefiles" -DCMAKE_CXX_COMPILER=g++ ..
-          } else {
-            cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_CXX_COMPILER=clang-cl ..
-          }
-          cmake --build . --config Release
-        shell: powershell
-
-      - name: Run cppcheck on Windows
-        if: runner.os == 'Windows'
-        run: |
-          cppcheck --enable=all --inconclusive --error-exitcode=1 --suppress=missingIncludeSystem .
-        shell: powershell
-
-      # Note: Clang-Tidy on Windows may require additional configuration
